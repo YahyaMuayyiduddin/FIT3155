@@ -31,6 +31,7 @@ class Node {
 public:
     std::unordered_map<char, Edge*> edges;
     int suffix_index;
+    Node* suffix_link;
     Node (int suffix_index) {
         this->suffix_index = suffix_index;
     }
@@ -138,41 +139,46 @@ public:
      */
     Traverse_Result traverse_tree(Node* node, int suffix_index , int end, std::string& string){
         int current = suffix_index;
-        int tree_index;
         Node* current_node = node;
         Edge* current_edge;
-        bool mid_edge = false;
+        int remainder = (end-1) - suffix_index + 1;
+
 
         if (!current_node->edges.contains(string.at(suffix_index))){
             std::cout << "no path from root" << '\n';
 
-            return {current_node, nullptr, -1, false};
+            return {current_node, nullptr, -1};
         }
         if (end == suffix_index){
             std::cout << "start" << '\n';
-            return {current_node, nullptr, -1, false};
+            return {current_node, nullptr, -1};
         }
         current_edge = current_node->edges.at(string.at(current));
-        tree_index = current_edge -> start;
-        while ( current < end ){
-            if (current_edge->end == tree_index){
-                if (current == end-1){
-                    return {current_node, current_edge, tree_index, false};
-                }
 
+        while (remainder > 0){
+            int skip_count = current_edge-> end - current_edge->start + 1;
+
+            // We can cross the child
+            if (remainder > skip_count){
                 current_node = current_edge->child;
-                current_edge = current_node->edges.at(string[current + 1]);
-                tree_index = current_edge->start;
-                mid_edge = false;
+                current_edge = current_node->edges.at(string[current + skip_count]);
+                remainder -= skip_count;
+                current += skip_count;
+
+            }
+            // We stop mid-edge
+            else if (remainder < skip_count) {
+                return {current_node, current_edge, current_edge->start + remainder - 1};
 
             } else {
-                tree_index++;
-                mid_edge = true;
+//              Stop at the end of an edge
+                return {current_node, current_edge, current_edge->end};
             }
-            current++;
+
+
 
         }
-        return {current_node, current_edge, tree_index-1 , false};
+
 
     }
 
