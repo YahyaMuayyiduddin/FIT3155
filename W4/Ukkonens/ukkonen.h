@@ -60,16 +60,22 @@ public:
     Node root;
 
     explicit Ukkonen (std::string input) {
+        root = Node{};
+        root.suffix_link = &root;
         construct_suffix_tree(input);
 
     }
 
     void construct_suffix_tree(std::string& input){
 
+        bool internal_node_created = false;
+        int remainder_index;
 
         for (int phase = 0; phase < input.length();phase++){
             Node* current_node = &this->root;
             std::cout << "Phase " << phase <<'\n';
+
+            internal_node_created = false;
 
             for (int j = 0; j <= phase; j++) {
                 std::cout << "J " << j <<'\n';
@@ -78,15 +84,21 @@ public:
                 if (last_edge == nullptr){
                     if (!last_node->edges.contains(input[phase])){
                         last_node->add_edge(j, phase, input, j);
+                        last_node->edges.at(input[phase])->child->suffix_link = &root;
                     } else {
                         // Rule 3, do nothing
+                        break;
                     }
+                    internal_node_created = false;
                 }
-                // Rule 3
+                // Rule 3 at the end of an edge
                 else if (last_edge->end == last_match_index && last_edge->child->edges.contains(input[phase])){
 //                    do nothing
                     std::cout << "Rule 3" << '\n';
                     break;
+                    if (phase > 0) {
+
+                    }
                 }
                 // Rule 1
                 else if (last_edge->end == last_match_index && last_edge->child->edges.empty()){
@@ -99,7 +111,19 @@ public:
                 // Rule 2 new child
                 else if (last_edge->end == last_match_index && !last_edge->child->edges.contains(input[phase])){
                     last_edge->child->add_edge(phase, phase, input, j);
+                    last_edge->child->edges.at(input[phase])->child->suffix_link = &root;
                     std::cout << "Rule 2 new child" << '\n';
+
+                    if (internal_node_created) {
+                        current_node->suffix_link = last_node;;
+                    }
+                    current_node = last_node->suffix_link;
+
+
+
+                    internal_node_created = true;
+
+
 //
                 }
                 //Rule 2 split in edge
@@ -115,9 +139,20 @@ public:
                     old_edge->end = k;
                     new_internal_node->add_edge(k + 1, old_end, input, old_edge_child);
                     new_internal_node->add_edge(phase, phase, input, j);
+                    new_internal_node->edges.at(input[phase])->child->suffix_link = &root;
+
+                    if (internal_node_created) {
+                        current_node->suffix_link = new_internal_node;
+                    }
+                    current_node = last_node->suffix_link;
+
+                    internal_node_created = true;
+
                 } else {
-                    std::cout << "Rule 3" << '\n';
+                    std::cout << "fuck you" << '\n';
                     break;
+                    internal_node_created = false;
+
 
                 }
 
