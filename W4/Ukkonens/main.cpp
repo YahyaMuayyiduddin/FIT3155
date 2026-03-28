@@ -9,7 +9,7 @@
 
 
 int main() {
-    std::string input = "abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuv&";
+    std::string input = "abcdabcd&";
     Ukkonen_Suffix_Tree suffix_tree{input};
 
 //    suffix_tree.print_suffixes(&suffix_tree.root, input, "");

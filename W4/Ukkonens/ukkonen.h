@@ -94,7 +94,7 @@ public:
 
         for (int phase = 0; phase < input.size(); phase++) {
             GLOBAL_END++;
-
+//            active_node = &root;
             int remainder_starting_index = last_leaf_index == -1 ? 0: last_leaf_index + 1;
             last_created_node = nullptr;
 
@@ -118,7 +118,12 @@ public:
                     }
                     // Rule 3
                     else {
-                        root.suffix_link = &root;
+                        if (new_remainder_index_start != -1) {
+                            remainder_starting_index = new_remainder_index_start;
+                        } else {
+                            remainder_starting_index = 0;
+                        }
+                        active_node = last_traversed_node->suffix_link;
 
                         break;
                     }
@@ -158,7 +163,12 @@ public:
                     resolve_suffix_links(last_created_node, new_internal_node_ptr);
                     last_created_node = new_internal_node_ptr;
 
-
+                    if (new_remainder_index_start != -1) {
+                        remainder_starting_index = new_remainder_index_start;
+                    } else {
+                        remainder_starting_index = 0;
+                    }
+                    active_node = last_traversed_node->suffix_link;
 
 
 
@@ -171,6 +181,12 @@ public:
                     resolve_suffix_links(last_created_node, last_traversed_edge->child.get());
                     last_created_node = nullptr;
 
+                    if (new_remainder_index_start != -1) {
+                        remainder_starting_index = new_remainder_index_start;
+                    } else {
+                        remainder_starting_index = 0;
+                    }
+                    active_node = last_traversed_edge->child->suffix_link;
 
                 }
 
@@ -178,7 +194,15 @@ public:
                 else if (edge_end == last_traversed_edge->get_end() && last_traversed_edge->child->has_edge(input[phase])){
                     resolve_suffix_links(last_created_node, last_traversed_edge->child.get());
                     last_created_node = nullptr;
-                    root.suffix_link = &root;
+
+                    if (new_remainder_index_start != -1) {
+                        remainder_starting_index = new_remainder_index_start;
+                    } else {
+                        remainder_starting_index = 0;
+                    }
+                    active_node = last_traversed_edge->child->suffix_link;
+
+
                     break;
                 }
 
@@ -186,13 +210,18 @@ public:
                 else if (edge_end < last_traversed_edge->get_end() && input[edge_end+1] == input[phase]){
                     resolve_suffix_links(last_created_node, last_traversed_node);
                     last_created_node = nullptr;
-                    root.suffix_link = &root;
+
+                    if (new_remainder_index_start != -1) {
+                        remainder_starting_index = new_remainder_index_start;
+                    } else {
+                        remainder_starting_index = 0;
+                    }
+                    active_node = last_traversed_node->suffix_link;
 
                     break;
                 }
 
-                remainder_starting_index = new_remainder_index_start + 1;
-                active_node = active_node->suffix_link;
+
 
             }
         }
@@ -214,6 +243,15 @@ public:
             return {nullptr, active_node, -1, -1, -1};
         }
         int current_pos = suffix_start_index;
+        if (!active_node->has_edge(input[current_pos])) {
+            // something went wrong in construction
+            std::cout << "Phase: " << phase << '\n';
+            std::cout << "j: " << j << '\n';
+            std::cout << "suffix: " << suffix_start_index << '\n';
+
+
+            throw std::runtime_error("Edge not found for char: " + std::string(1, input[current_pos]));
+        }
         Edge* current_edge = active_node->get_edge(input[current_pos]);
         Node* current_node = active_node;
 
@@ -221,8 +259,8 @@ public:
              int edge_length = (current_edge->get_end() - current_edge->suffix_start + 1);
              int new_remainder = remainder_length - edge_length;
              if (new_remainder < 0) {
-                 // Suffix fully traversed, no remainder
-                 return {current_edge, current_node, current_edge->suffix_start, current_edge->suffix_start + remainder_length - 1, target - remainder_length + 1 };
+                 // Suffix fully traversed, remainder
+                 return {current_edge, current_node, current_edge->suffix_start, current_edge->suffix_start + remainder_length - 1, target - remainder_length + 1  };
              }
              if (new_remainder == 0){
                  return {current_edge, current_node, current_edge->suffix_start, current_edge->get_end() , -1 };
@@ -234,6 +272,7 @@ public:
                  remainder_length = new_remainder;
              }
          }
+         std::cout << "garbage" << '\n';
         return {nullptr, active_node, -1, -1, -1};
     }
 
