@@ -13,7 +13,7 @@ int main() {
     Ukkonen_Suffix_Tree suffix_tree{input};
 
 //    suffix_tree.print_suffixes(&suffix_tree.root, input, "");
-    auto suffixes = suffix_tree.get_suffixes(input);
+    auto suffixes = suffix_tree.get_suffixes();
     std::sort(suffixes->begin(), suffixes->end(), [](const std::string &a, const std::string &b){
         return a.length() < b.length();
     });

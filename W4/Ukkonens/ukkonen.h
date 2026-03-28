@@ -12,8 +12,6 @@
 
 struct Node;
 
-
-
 struct Edge {
     std::unique_ptr<Node> child;
     int suffix_start;
@@ -83,21 +81,22 @@ struct Traversal_Result {
 class Ukkonen_Suffix_Tree {
 public:
     Node root;
+    std::string string;
     int GLOBAL_END = -1;
-
+    Node* active_node = &root;
 
     Ukkonen_Suffix_Tree(std::string& input) {
+        string = input;
         root = Node{};
         root.suffix_link = &root;
         int last_leaf_index = -1;
         Node* last_created_node = nullptr;
-        Node* active_node = &root;
+
         for (int phase = 0; phase < input.size(); phase++) {
             GLOBAL_END++;
 
             int remainder_starting_index = last_leaf_index == -1 ? 0: last_leaf_index + 1;
             last_created_node = nullptr;
-            active_node = &root;
 
 
             for (int j = last_leaf_index + 1; j <= phase; j++) {
@@ -108,7 +107,7 @@ public:
                         new_remainder_index_start] =
                         traverse_suffix_tree(input, phase, active_node, remainder_starting_index, j);
 
-                // TODO: apply Ukkonen rules based on traversal result
+
                 // Root
                 if (last_traversed_edge == nullptr) {
 
@@ -238,7 +237,7 @@ public:
         return {nullptr, active_node, -1, -1, -1};
     }
 
-    void print_tree_bfs(std::string& input) {
+    void print_tree_bfs() {
         std::queue<std::pair<Node*, int>> q;
         q.push({&root, 0});
 
@@ -247,7 +246,7 @@ public:
             q.pop();
 
             for (auto& [c, edge] : node->children) {
-                std::string label = input.substr(edge->suffix_start,
+                std::string label = string.substr(edge->suffix_start,
                                                  edge->get_end() - edge->suffix_start + 1);
                 std::cout << std::string(depth * 2, ' ') << label << "\n";
                 q.push({edge->child.get(), depth + 1});
@@ -255,9 +254,9 @@ public:
         }
     }
 
-    auto get_suffixes(std::string& input) {
+    auto get_suffixes() {
         auto array = std::make_unique<std::vector<std::string>>();
-        get_suffixes_aux(&root, input, "", array.get());
+        get_suffixes_aux(&root, string, "", array.get());
         return array;
     }
 
