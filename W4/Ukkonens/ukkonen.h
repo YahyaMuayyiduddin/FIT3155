@@ -9,215 +9,117 @@
 #include <unordered_map>
 #include <iostream>
 
-
-class Node;
+struct Node;
 
 struct Edge {
-public:
-    Node* child;
-    int start;
-    int end;
-    Edge (int start, int end, Node* child) {
-        this->start = start;
-        this->end = end;
-        this->child = child;
-    }
-    Edge(){}
+    std::unique_ptr<Node> child;
+    int suffix_start;
+    int suffix_end;
 
+    Edge() = default;
+
+    Edge(int start, int end, std::unique_ptr<Node> new_child) {
+        this->suffix_start = start;
+        this->suffix_end = end;
+        this->child = std::move(new_child);
+    }
 };
 
-
-class Node {
-public:
-    std::unordered_map<char, Edge*> edges;
-    int suffix_index;
+struct Node {
+    std::unordered_map<char, std::unique_ptr<Edge>> children;
     Node* suffix_link;
-    Node (int suffix_index) {
-        this->suffix_index = suffix_index;
+
+    void add_edge(int suffix_start, int suffix_end, char first_character) {
+        children[first_character] = std::make_unique<Edge>(
+                suffix_start, suffix_end, std::make_unique<Node>());
     }
 
-    Node (){}
-
-    void add_edge(int start, int end, std::string& string, int leaf_index){
-        edges[string.at(start)] = new Edge(start, end, new Node(leaf_index));
+    void add_edge(int suffix_start, int suffix_end, char first_character, std::unique_ptr<Node> new_child) {
+        children[first_character] = std::make_unique<Edge>(
+                suffix_start, suffix_end, std::move(new_child));
     }
-    void add_edge(int start, int end, std::string& string, Node* new_child){
-        edges[string.at(start)] = new Edge(start, end, new_child);
+
+    bool has_edge(char key) {
+        return this->children.contains(key);
+    }
+
+    Edge* get_edge(char key) {
+        return this->children.at(key).get();
     }
 };
 
-struct Traverse_Result{
-    Node* last_node;
-    Edge* last_edge;
-    int last_match_index;
-    bool full_suffix_match;
+struct Traversal_Result {
+    Edge* last_traversed_edge;
+    Node* last_traversed_node;
+    int edge_start;
+    int edge_end;
+    int remainder_index_start;
 };
 
 
-
-class Ukkonen {
-public:
+class Ukkonen_Suffix_Tree {
     Node root;
 
-    explicit Ukkonen (std::string input) {
+    Ukkonen_Suffix_Tree(std::string& input) {
         root = Node{};
         root.suffix_link = &root;
-        construct_suffix_tree(input);
 
-    }
-
-    void construct_suffix_tree(std::string& input){
-
-        bool internal_node_created = false;
-        int remainder_index;
-
-        for (int phase = 0; phase < input.length();phase++){
-            Node* current_node = &this->root;
-            std::cout << "Phase " << phase <<'\n';
-
-            internal_node_created = false;
+        for (int phase = 0; phase < input.size(); phase++) {
+            Node* active_node = &root;
+            int remainder_starting_index = 0;
 
             for (int j = 0; j <= phase; j++) {
-                std::cout << "J " << j <<'\n';
+                auto [last_traversed_edge,
+                        last_traversed_node,
+                        edge_start,
+                        edge_end,
+                        new_remainder_index_start] =
+                        traverse_suffix_tree(input, phase, active_node, remainder_starting_index, j);
 
-                auto [last_node, last_edge, last_match_index, full_match] = traverse_tree(current_node, j, phase, input);
-                if (last_edge == nullptr){
-                    if (!last_node->edges.contains(input[phase])){
-                        last_node->add_edge(j, phase, input, j);
-                        last_node->edges.at(input[phase])->child->suffix_link = &root;
-                    } else {
-                        // Rule 3, do nothing
-                        break;
-                    }
-                    internal_node_created = false;
-                }
-                // Rule 3 at the end of an edge
-                else if (last_edge->end == last_match_index && last_edge->child->edges.contains(input[phase])){
-//                    do nothing
-                    std::cout << "Rule 3" << '\n';
-                    break;
-                    if (phase > 0) {
+                // TODO: apply Ukkonen rules based on traversal result
+                if (last_traversed_edge == nullptr) {
+                    if (!active_node->has_edge(input[j])){
+                        active_node->add_edge(j, phase, input[j]);
 
                     }
-                }
-                // Rule 1
-                else if (last_edge->end == last_match_index && last_edge->child->edges.empty()){
-                    last_edge->end = phase;
-                    std::cout << "Rule 1" << '\n';
-
+                else if (){
 
                 }
-
-                // Rule 2 new child
-                else if (last_edge->end == last_match_index && !last_edge->child->edges.contains(input[phase])){
-                    last_edge->child->add_edge(phase, phase, input, j);
-                    last_edge->child->edges.at(input[phase])->child->suffix_link = &root;
-                    std::cout << "Rule 2 new child" << '\n';
-
-                    if (internal_node_created) {
-                        current_node->suffix_link = last_node;;
-                    }
-                    current_node = last_node->suffix_link;
-
-
-
-                    internal_node_created = true;
-
-
-//
                 }
-                //Rule 2 split in edge
-                else if (last_edge->end > last_match_index && input[phase] != input[last_match_index+1]){
-                    std::cout << "Rule 2 split" << '\n';
-                    std::cout << input[last_match_index] << '\n';
-                    int k = last_match_index;
-                    int old_end = last_edge->end;
-                    Node* old_edge_child = last_edge->child;
-                    Edge* old_edge = last_edge;
-                    Node* new_internal_node = new Node(j);
-                    old_edge->child = new_internal_node;
-                    old_edge->end = k;
-                    new_internal_node->add_edge(k + 1, old_end, input, old_edge_child);
-                    new_internal_node->add_edge(phase, phase, input, j);
-                    new_internal_node->edges.at(input[phase])->child->suffix_link = &root;
-
-                    if (internal_node_created) {
-                        current_node->suffix_link = new_internal_node;
-                    }
-                    current_node = last_node->suffix_link;
-
-                    internal_node_created = true;
-
-                } else {
-                    std::cout << "fuck you" << '\n';
-                    break;
-                    internal_node_created = false;
-
-
-                }
-
-
             }
-
         }
-
-    }
-
-    /**
-     * Traverses the suffix tree until it reaches a point when a rule must be applied. Returns the last active node
-     * and last index before rule was applied.
-     * @param node
-     * @param suffix_index
-     * @param end
-     * @param string
-     * @return Traverse_Result struct with the results of the traversal
-     */
-    Traverse_Result traverse_tree(Node* node, int suffix_index , int end, std::string& string){
-        int current = suffix_index;
-        Node* current_node = node;
-        Edge* current_edge;
-        int remainder = (end-1) - suffix_index + 1;
-
-
-        if (!current_node->edges.contains(string.at(suffix_index))){
-            std::cout << "no path from root" << '\n';
-
-            return {current_node, nullptr, -1};
-        }
-        if (end == suffix_index){
-            std::cout << "start" << '\n';
-            return {current_node, nullptr, -1};
-        }
-        current_edge = current_node->edges.at(string.at(current));
-
-        while (remainder > 0){
-            int skip_count = current_edge-> end - current_edge->start + 1;
-
-            // We can cross the child
-            if (remainder > skip_count){
-                current_node = current_edge->child;
-                current_edge = current_node->edges.at(string[current + skip_count]);
-                remainder -= skip_count;
-                current += skip_count;
-
-            }
-            // We stop mid-edge
-            else if (remainder < skip_count) {
-                return {current_node, current_edge, current_edge->start + remainder - 1};
-
-            } else {
-//              Stop at the end of an edge
-                return {current_node, current_edge, current_edge->end};
-            }
-
-
-
-        }
-
-
     }
 
 
+    Traversal_Result traverse_suffix_tree(std::string& input, int phase, Node* active_node, int suffix_start_index, int j) {
+        // TODO: implement traversal logic
+        int target = phase - 1;
+        int remainder_length = target - suffix_start_index + 1;
+        // j == phase
+        if (j == phase) {
+            return {nullptr, active_node, -1, -1, -1};
+        }
+        Edge* current_edge = active_node->get_edge(input[suffix_start_index]);
+        Node* current_node = active_node;
+
+         while (remainder_length > 0){
+             int edge_length = (current_edge->suffix_end - current_edge->suffix_start + 1);
+             int new_remainder = remainder_length - edge_length;
+             if (new_remainder < 0) {
+                 // Suffix fully traversed, no remainder
+                 return {current_edge, current_node, current_edge->suffix_start, current_edge->suffix_start + remainder_length - 1, target - remainder_length + 1 };
+             }
+             if (new_remainder == 0){
+                 return {current_edge, current_node, current_edge->suffix_start, current_edge->suffix_end , -1 };
+
+             } else {
+                 current_node = current_edge->child.get();
+                 current_edge = current_node->get_edge(input[suffix_start_index + edge_length]);
+                 remainder_length = new_remainder;
+             }
+         }
+
+    }
 };
 
 #endif //UKKONENS_UKKONEN_H
