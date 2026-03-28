@@ -18,13 +18,15 @@ struct Edge {
     std::unique_ptr<Node> child;
     int suffix_start;
     int suffix_end;
+    int* global_suffix_end;
 
     Edge() = default;
 
-    Edge(int start, int end, std::unique_ptr<Node> new_child) {
+    Edge(int start, int end, std::unique_ptr<Node> new_child, int* global_end)  {
         this->suffix_start = start;
         this->suffix_end = end;
         this->child = std::move(new_child);
+        this->global_suffix_end = global_end;
     }
 
     void set_child(std::unique_ptr<Node> new_child) {
@@ -36,14 +38,15 @@ struct Node {
     std::unordered_map<char, std::unique_ptr<Edge>> children;
     Node* suffix_link;
 
-    void add_edge(int suffix_start, int suffix_end, char first_character) {
+
+    void add_edge(int suffix_start, int suffix_end, char first_character, int* global_end) {
         children[first_character] = std::make_unique<Edge>(
-                suffix_start, suffix_end, std::make_unique<Node>());
+                suffix_start, suffix_end, std::make_unique<Node>(), global_end);
     }
 
-    void add_edge(int suffix_start, int suffix_end, char first_character, std::unique_ptr<Node> new_child) {
+    void add_edge(int suffix_start, int suffix_end, char first_character, std::unique_ptr<Node> new_child, int* global_end) {
         children[first_character] = std::make_unique<Edge>(
-                suffix_start, suffix_end, std::move(new_child));
+                suffix_start, suffix_end, std::move(new_child), global_end);
     }
 
     bool has_edge(char key) {
@@ -67,16 +70,20 @@ struct Traversal_Result {
 class Ukkonen_Suffix_Tree {
 public:
     Node root;
+    int GLOBAL_END = -1;
+
 
     Ukkonen_Suffix_Tree(std::string& input) {
         root = Node{};
         root.suffix_link = &root;
+        int last_leaf_index = -1;
 
         for (int phase = 0; phase < input.size(); phase++) {
+            GLOBAL_END++;
             Node* active_node = &root;
             int remainder_starting_index = 0;
 
-            for (int j = 0; j <= phase; j++) {
+            for (int j = last_leaf_index + 1; j <= phase; j++) {
                 auto [last_traversed_edge,
                         last_traversed_node,
                         edge_start,
@@ -89,7 +96,8 @@ public:
                 if (last_traversed_edge == nullptr) {
                     // Rule 2 alternate
                     if (!active_node->has_edge(input[j])){
-                        active_node->add_edge(j, phase, input[j]);
+                        active_node->add_edge(j, phase, input[j], &GLOBAL_END);
+                        last_leaf_index = j;
 
                     }
                     // Rule 3
@@ -102,6 +110,9 @@ public:
                     // Rule 1
                 else if (edge_end == last_traversed_edge->suffix_end && last_traversed_edge->child->children.empty()){
                     last_traversed_edge->suffix_end = phase;
+                    last_leaf_index = j;
+                    std::cout << "Rule 1" << '\n';
+
                 }
 
                 // Rule 2 regular
@@ -119,24 +130,31 @@ public:
                     old_edge->suffix_end = edge_end;
 
                     // Add new edges to the new_internal_node
-                    new_internal_node_ptr->add_edge(edge_end+1, old_end, input[edge_end+1], std::move(old_child));
-                    new_internal_node_ptr->add_edge(phase, phase, input[phase]);
+                    new_internal_node_ptr->add_edge(edge_end+1, old_end, input[edge_end+1], std::move(old_child), &GLOBAL_END);
+                    new_internal_node_ptr->add_edge(phase, phase, input[phase], &GLOBAL_END);
+
+                    last_leaf_index = j;
+
 
 
 
                 }
                 // Rule 2 alternate
                 else if (edge_end == last_traversed_edge->suffix_end && !last_traversed_edge->child->has_edge(input[phase])){
-                    last_traversed_edge->child->add_edge(phase, phase, input[phase]);
+                    last_traversed_edge->child->add_edge(phase, phase, input[phase], &GLOBAL_END);
+                    last_leaf_index = j;
+
                 }
 
                 // Rule 3 end of edge
                 else if (edge_end == last_traversed_edge->suffix_end && last_traversed_edge->child->has_edge(input[phase])){
+                    std::cout << "Rule 3" << '\n';
                     break;
                 }
 
                 // Rule 3 mid edge
                 else if (edge_end < last_traversed_edge->suffix_end && input[edge_end+1] == input[phase]){
+                    std::cout << "Rule 3" << '\n';
 
                     break;
                 }
