@@ -91,11 +91,14 @@ public:
         root.suffix_link = &root;
         int last_leaf_index = -1;
         Node* last_created_node = nullptr;
+        Node* active_node = &root;
         for (int phase = 0; phase < input.size(); phase++) {
             GLOBAL_END++;
-            Node* active_node = &root;
-            int remainder_starting_index = 0;
+
+            int remainder_starting_index = last_leaf_index == -1 ? 0: last_leaf_index + 1;
             last_created_node = nullptr;
+            active_node = &root;
+
 
             for (int j = last_leaf_index + 1; j <= phase; j++) {
                 auto [last_traversed_edge,
@@ -103,7 +106,7 @@ public:
                         edge_start,
                         edge_end,
                         new_remainder_index_start] =
-                        traverse_suffix_tree(input, phase, active_node, j, j);
+                        traverse_suffix_tree(input, phase, active_node, remainder_starting_index, j);
 
                 // TODO: apply Ukkonen rules based on traversal result
                 // Root
@@ -116,6 +119,8 @@ public:
                     }
                     // Rule 3
                     else {
+                        root.suffix_link = &root;
+
                         break;
                     }
 
@@ -174,7 +179,7 @@ public:
                 else if (edge_end == last_traversed_edge->get_end() && last_traversed_edge->child->has_edge(input[phase])){
                     resolve_suffix_links(last_created_node, last_traversed_edge->child.get());
                     last_created_node = nullptr;
-
+                    root.suffix_link = &root;
                     break;
                 }
 
@@ -182,9 +187,13 @@ public:
                 else if (edge_end < last_traversed_edge->get_end() && input[edge_end+1] == input[phase]){
                     resolve_suffix_links(last_created_node, last_traversed_node);
                     last_created_node = nullptr;
+                    root.suffix_link = &root;
 
                     break;
                 }
+
+                remainder_starting_index = new_remainder_index_start + 1;
+                active_node = active_node->suffix_link;
 
             }
         }
