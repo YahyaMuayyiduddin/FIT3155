@@ -8,8 +8,11 @@
 #include <tuple>
 #include <unordered_map>
 #include <iostream>
+#include <print>
 
 struct Node;
+
+
 
 struct Edge {
     std::unique_ptr<Node> child;
@@ -21,6 +24,10 @@ struct Edge {
     Edge(int start, int end, std::unique_ptr<Node> new_child) {
         this->suffix_start = start;
         this->suffix_end = end;
+        this->child = std::move(new_child);
+    }
+
+    void set_child(std::unique_ptr<Node> new_child) {
         this->child = std::move(new_child);
     }
 };
@@ -58,6 +65,7 @@ struct Traversal_Result {
 
 
 class Ukkonen_Suffix_Tree {
+public:
     Node root;
 
     Ukkonen_Suffix_Tree(std::string& input) {
@@ -74,25 +82,72 @@ class Ukkonen_Suffix_Tree {
                         edge_start,
                         edge_end,
                         new_remainder_index_start] =
-                        traverse_suffix_tree(input, phase, active_node, remainder_starting_index, j);
+                        traverse_suffix_tree(input, phase, active_node, j, j);
 
                 // TODO: apply Ukkonen rules based on traversal result
+                // Root
                 if (last_traversed_edge == nullptr) {
+                    // Rule 2 alternate
                     if (!active_node->has_edge(input[j])){
                         active_node->add_edge(j, phase, input[j]);
 
                     }
-                else if (){
+                    // Rule 3
+                    else {
+                        break;
+                    }
 
                 }
+
+                    // Rule 1
+                else if (edge_end == last_traversed_edge->suffix_end && last_traversed_edge->child->children.empty()){
+                    last_traversed_edge->suffix_end = phase;
                 }
+
+                // Rule 2 regular
+                else if (edge_end < last_traversed_edge->suffix_end && input[edge_end+1] != input[phase]){
+
+                    auto old_child = std::move(last_traversed_edge->child);
+                    Edge* old_edge = last_traversed_edge;
+                    int old_start = last_traversed_edge->suffix_start;
+                    int old_end =  last_traversed_edge->suffix_end;
+
+                    // Create new internal node
+                    std::unique_ptr<Node> new_internal_node = std::make_unique<Node>();
+                    Node* new_internal_node_ptr = new_internal_node.get();
+                    old_edge->set_child(std::move(new_internal_node));
+                    old_edge->suffix_end = edge_end;
+
+                    // Add new edges to the new_internal_node
+                    new_internal_node_ptr->add_edge(edge_end+1, old_end, input[edge_end+1], std::move(old_child));
+                    new_internal_node_ptr->add_edge(phase, phase, input[phase]);
+
+
+
+                }
+                // Rule 2 alternate
+                else if (edge_end == last_traversed_edge->suffix_end && !last_traversed_edge->child->has_edge(input[phase])){
+                    last_traversed_edge->child->add_edge(phase, phase, input[phase]);
+                }
+
+                // Rule 3 end of edge
+                else if (edge_end == last_traversed_edge->suffix_end && last_traversed_edge->child->has_edge(input[phase])){
+                    break;
+                }
+
+                // Rule 3 mid edge
+                else if (edge_end < last_traversed_edge->suffix_end && input[edge_end+1] == input[phase]){
+
+                    break;
+                }
+
             }
         }
     }
 
 
     Traversal_Result traverse_suffix_tree(std::string& input, int phase, Node* active_node, int suffix_start_index, int j) {
-        // TODO: implement traversal logic
+
         int target = phase - 1;
         int remainder_length = target - suffix_start_index + 1;
         // j == phase
@@ -118,7 +173,24 @@ class Ukkonen_Suffix_Tree {
                  remainder_length = new_remainder;
              }
          }
+        return {nullptr, active_node, -1, -1, -1};
+    }
 
+    void print_tree_bfs(std::string& input) {
+        std::queue<std::pair<Node*, int>> q;
+        q.push({&root, 0});
+
+        while (!q.empty()) {
+            auto [node, depth] = q.front();
+            q.pop();
+
+            for (auto& [c, edge] : node->children) {
+                std::string label = input.substr(edge->suffix_start,
+                                                 edge->suffix_end - edge->suffix_start + 1);
+                std::cout << std::string(depth * 2, ' ') << label << "\n";
+                q.push({edge->child.get(), depth + 1});
+            }
+        }
     }
 };
 
