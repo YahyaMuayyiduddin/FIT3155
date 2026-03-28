@@ -246,6 +246,24 @@ public:
         }
     }
 
+    auto get_suffixes(std::string& input) {
+        auto array = std::make_unique<std::vector<std::string>>();
+        get_suffixes_aux(&root, input, "", array.get());
+        return array;
+    }
+
+    void get_suffixes_aux(Node* node, std::string& input, const std::string& current, std::vector<std::string>* suffixes) {
+        if (node->children.empty()) {
+            suffixes->push_back(current);
+            return;
+        }
+        for (auto& [c, edge] : node->children) {
+            std::string label = input.substr(edge->suffix_start,
+                                             edge->get_end() - edge->suffix_start + 1);
+            get_suffixes_aux(edge->child.get(), input, current + label, suffixes);
+        }
+    }
+
     void print_suffixes(Node* node, std::string& input, const std::string& current) {
         if (node->children.empty()) {
             std::cout << current << "\n";
