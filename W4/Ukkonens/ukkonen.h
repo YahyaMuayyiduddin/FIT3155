@@ -12,6 +12,8 @@
 
 struct Node;
 
+
+
 struct Edge {
     std::unique_ptr<Node> child;
     int suffix_start;
@@ -81,23 +83,19 @@ struct Traversal_Result {
 class Ukkonen_Suffix_Tree {
 public:
     Node root;
-    std::string string;
     int GLOBAL_END = -1;
-    Node* active_node = &root;
+
 
     Ukkonen_Suffix_Tree(std::string& input) {
-        string = input;
         root = Node{};
         root.suffix_link = &root;
         int last_leaf_index = -1;
         Node* last_created_node = nullptr;
-
         for (int phase = 0; phase < input.size(); phase++) {
             GLOBAL_END++;
-//            active_node = &root;
-            int remainder_starting_index = last_leaf_index == -1 ? 0: last_leaf_index + 1;
+            Node* active_node = &root;
+            int remainder_starting_index = 0;
             last_created_node = nullptr;
-
 
             for (int j = last_leaf_index + 1; j <= phase; j++) {
                 auto [last_traversed_edge,
@@ -105,9 +103,9 @@ public:
                         edge_start,
                         edge_end,
                         new_remainder_index_start] =
-                        traverse_suffix_tree(input, phase, active_node, remainder_starting_index, j);
+                        traverse_suffix_tree(input, phase, active_node, j, j);
 
-
+                // TODO: apply Ukkonen rules based on traversal result
                 // Root
                 if (last_traversed_edge == nullptr) {
 
@@ -118,13 +116,6 @@ public:
                     }
                     // Rule 3
                     else {
-                        if (new_remainder_index_start != -1) {
-                            remainder_starting_index = new_remainder_index_start;
-                        } else {
-                            remainder_starting_index = 0;
-                        }
-                        active_node = last_traversed_node->suffix_link;
-
                         break;
                     }
 
@@ -163,12 +154,7 @@ public:
                     resolve_suffix_links(last_created_node, new_internal_node_ptr);
                     last_created_node = new_internal_node_ptr;
 
-                    if (new_remainder_index_start != -1) {
-                        remainder_starting_index = new_remainder_index_start;
-                    } else {
-                        remainder_starting_index = 0;
-                    }
-                    active_node = last_traversed_node->suffix_link;
+
 
 
 
@@ -181,12 +167,6 @@ public:
                     resolve_suffix_links(last_created_node, last_traversed_edge->child.get());
                     last_created_node = nullptr;
 
-                    if (new_remainder_index_start != -1) {
-                        remainder_starting_index = new_remainder_index_start;
-                    } else {
-                        remainder_starting_index = 0;
-                    }
-                    active_node = last_traversed_edge->child->suffix_link;
 
                 }
 
@@ -194,14 +174,6 @@ public:
                 else if (edge_end == last_traversed_edge->get_end() && last_traversed_edge->child->has_edge(input[phase])){
                     resolve_suffix_links(last_created_node, last_traversed_edge->child.get());
                     last_created_node = nullptr;
-
-                    if (new_remainder_index_start != -1) {
-                        remainder_starting_index = new_remainder_index_start;
-                    } else {
-                        remainder_starting_index = 0;
-                    }
-                    active_node = last_traversed_edge->child->suffix_link;
-
 
                     break;
                 }
@@ -211,17 +183,8 @@ public:
                     resolve_suffix_links(last_created_node, last_traversed_node);
                     last_created_node = nullptr;
 
-                    if (new_remainder_index_start != -1) {
-                        remainder_starting_index = new_remainder_index_start;
-                    } else {
-                        remainder_starting_index = 0;
-                    }
-                    active_node = last_traversed_node->suffix_link;
-
                     break;
                 }
-
-
 
             }
         }
@@ -243,15 +206,6 @@ public:
             return {nullptr, active_node, -1, -1, -1};
         }
         int current_pos = suffix_start_index;
-        if (!active_node->has_edge(input[current_pos])) {
-            // something went wrong in construction
-            std::cout << "Phase: " << phase << '\n';
-            std::cout << "j: " << j << '\n';
-            std::cout << "suffix: " << suffix_start_index << '\n';
-
-
-            throw std::runtime_error("Edge not found for char: " + std::string(1, input[current_pos]));
-        }
         Edge* current_edge = active_node->get_edge(input[current_pos]);
         Node* current_node = active_node;
 
@@ -259,8 +213,8 @@ public:
              int edge_length = (current_edge->get_end() - current_edge->suffix_start + 1);
              int new_remainder = remainder_length - edge_length;
              if (new_remainder < 0) {
-                 // Suffix fully traversed, remainder
-                 return {current_edge, current_node, current_edge->suffix_start, current_edge->suffix_start + remainder_length - 1, target - remainder_length + 1  };
+                 // Suffix fully traversed, no remainder
+                 return {current_edge, current_node, current_edge->suffix_start, current_edge->suffix_start + remainder_length - 1, target - remainder_length + 1 };
              }
              if (new_remainder == 0){
                  return {current_edge, current_node, current_edge->suffix_start, current_edge->get_end() , -1 };
@@ -272,11 +226,10 @@ public:
                  remainder_length = new_remainder;
              }
          }
-         std::cout << "garbage" << '\n';
         return {nullptr, active_node, -1, -1, -1};
     }
 
-    void print_tree_bfs() {
+    void print_tree_bfs(std::string& input) {
         std::queue<std::pair<Node*, int>> q;
         q.push({&root, 0});
 
@@ -285,7 +238,7 @@ public:
             q.pop();
 
             for (auto& [c, edge] : node->children) {
-                std::string label = string.substr(edge->suffix_start,
+                std::string label = input.substr(edge->suffix_start,
                                                  edge->get_end() - edge->suffix_start + 1);
                 std::cout << std::string(depth * 2, ' ') << label << "\n";
                 q.push({edge->child.get(), depth + 1});
@@ -293,9 +246,9 @@ public:
         }
     }
 
-    auto get_suffixes() {
+    auto get_suffixes(std::string& input) {
         auto array = std::make_unique<std::vector<std::string>>();
-        get_suffixes_aux(&root, string, "", array.get());
+        get_suffixes_aux(&root, input, "", array.get());
         return array;
     }
 
