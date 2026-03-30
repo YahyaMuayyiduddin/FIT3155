@@ -2,7 +2,7 @@
 #include "ukkonen.h"// TIP To <b>Run</b> code, press <shortcut actionId="Run"/> or click the <icon src="AllIcons.Actions.Execute"/> icon in the gutter.
 
 void test(std::string input) {
-    Ukkonen_Suffix_Tree suffix_tree{input};
+    Ukkonen_Suffix_Tree suffix_tree{input, false};
     auto suffixes = suffix_tree.get_suffixes(input);
 
     // check every suffix of input exists in the array
@@ -102,20 +102,23 @@ inline void run_all_tests() {
 
 int main() {
     std::string input = "aaabaa$";
-    Ukkonen_Suffix_Tree suffix_tree{input};
+    Ukkonen_Suffix_Tree suffix_tree{input, true};
     auto suffixes = suffix_tree.get_suffixes(input);
     for (auto &suffix: *suffixes) {
         std:: cout << suffix << '\n';
     }
 
     suffix_tree.print_suffix_tree(input);
-//    std::cout << suffixes->size() << '\n';
+    std::cout << suffixes->size() << '\n';
 //    for (auto& [c, edge] : suffix_tree.root.children) {
 //        std::cout << "root -> '" << c << "' : "
-//                  << input.substr(edge->suffix_start, edge->get_end() - edge->suffix_star`t + 1)
+//                  << input.substr(edge->suffix_start, edge->get_end() - edge->suffix_start + 1)
 //                  << '\n';
 //    }
 //    run_all_tests();
+
+
+
 
 
 

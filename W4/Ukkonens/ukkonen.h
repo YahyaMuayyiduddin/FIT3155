@@ -86,9 +86,11 @@ class Ukkonen_Suffix_Tree {
 public:
     Node root;
     int GLOBAL_END = -1;
+    bool print_rules = false;
 
 
-    Ukkonen_Suffix_Tree(std::string& input) {
+    Ukkonen_Suffix_Tree(std::string& input, bool print) {
+        print_rules = print;
         root = Node{};
         root.suffix_link = &root;
         int last_leaf_index = -1;
@@ -97,14 +99,18 @@ public:
         int remainder_starting_index = 0;
         for (int phase = 0; phase < input.size(); phase++) {
             GLOBAL_END++;
-            std::cout << "Phase :" << phase <<'\n';
+
+            if (print_rules) {
+                std::cout << "Phase :" << phase <<'\n';
+            }
 
             remainder_starting_index = last_leaf_index == -1 ? 0 : last_leaf_index + 1;
             last_created_node = nullptr;
 //            std::cout << last_leaf_index << '\n';
             for (int j = last_leaf_index + 1; j <= phase; j++) {
-                std::cout << "J :" << j <<'\n';
-
+                if (print_rules) {
+                    std::cout << "J :" << j << '\n';
+                }
 //                std:: cout << "remainder index: " << remainder_starting_index << '\n';
 //                std::cout << "activenode is bool? " << static_cast<bool>(active_node == &root) << '\n';
 
@@ -124,13 +130,17 @@ public:
                         last_leaf_index = j;
                         remainder_starting_index = 0;
                         active_node = &root;
-                        std::cout << "Rule 2 root" << '\n';
+                        if (print_rules) {
+
+                            std::cout << "Rule 2 root" << '\n';
+                        }
 
                     }
                     // Rule 3
                     else {
-                        std::cout << "rule 3 root"  <<'\n';
-
+                        if (print_rules) {
+                            std::cout << "rule 3 root" << '\n';
+                        }
                         active_node = &root;
                         remainder_starting_index = j+1;
 
@@ -146,7 +156,9 @@ public:
 
                     // Rule 1
                 else if (edge_end == last_traversed_edge->get_end() && last_traversed_edge->child->children.empty()){
-                    std::cout << "rule 1" <<'\n';
+                    if (print_rules) {
+                        std::cout << "rule 1" << '\n';
+                    }
                     last_traversed_edge->suffix_end = phase;
                     last_leaf_index = j;
                     last_created_node = nullptr;
@@ -185,14 +197,12 @@ public:
 
                     // Setup next extension
 //                    active_node = last_traversed_node->suffix_link;
-//                    remainder_starting_index = new_remainder_index_start ;
+//                    remainder_starting_index = j + 1 ;
                     active_node = &root;
                     remainder_starting_index = j+1;
-
-                    std::cout << "rule 2 regular" <<'\n';
-
-
-
+                    if (print_rules) {
+                        std::cout << "rule 2 regular" << '\n';
+                    }
                 }
                 // Rule 2 alternate
                 else if (edge_end == last_traversed_edge->get_end() && !last_traversed_edge->child->has_edge(input[phase])){
@@ -208,17 +218,23 @@ public:
                     last_created_node = nullptr;
 
                     // Setup next extension
-//                    active_node = last_traversed_edge->child->suffix_link;
+                    active_node = last_traversed_edge->child->suffix_link;
+                    remainder_starting_index = phase;
+                    if (print_rules) {
+
+                        std::cout << "rule 2 alt" << '\n';
+                    }
+//                    active_node = &root;
 //                    remainder_starting_index = j+1;
-                    std::cout << "rule 2 alt" <<'\n';
-                    active_node = &root;
-                    remainder_starting_index = j+1;
 
                 }
 
                 // Rule 3 end of edge
                 else if (edge_end == last_traversed_edge->get_end() && last_traversed_edge->child->has_edge(input[phase])){
-                    std::cout << "rule 3 end edge :" <<'\n';
+                    if (print_rules) {
+
+                        std::cout << "rule 3 end edge :" << '\n';
+                    }
 
                     resolve_suffix_links(last_created_node, last_traversed_edge->child.get());
                     last_created_node = nullptr;
@@ -238,9 +254,15 @@ public:
                 else if (edge_end < last_traversed_edge->get_end() && input[edge_end+1] == input[phase]){
 //
                     if (edge_end == last_traversed_edge->get_end()){
-                        std::cout << "Rule 3 end edge" <<'\n';
+                        if (print_rules) {
+
+                            std::cout << "Rule 3 end edge" << '\n';
+                        }
                     }else {
-                        std::cout << "Rule 3 mid edge" <<'\n';
+                        if (print_rules) {
+
+                            std::cout << "Rule 3 mid edge" << '\n';
+                        }
                     }
                     resolve_suffix_links(last_created_node, last_traversed_node);
                     last_created_node = nullptr;
@@ -253,6 +275,93 @@ public:
             }
         }
     }
+
+
+
+
+    void resolve_suffix_links(Node* origin_node, Node* target_node){
+        if (origin_node != nullptr) {
+            origin_node->suffix_link = target_node;
+            return;
+        } std::cout << "Nullptr" << '\n';
+    }
+
+    Traversal_Result find_endpoint(std::string& input, int phase, Node* active_node, int suffix_start_index, int j){
+        int target = phase - 1;
+        int remainder_length = target - suffix_start_index + 1;
+        // j == phase
+        if (j == phase) {
+            return {nullptr, active_node, -1, -1, -1};
+        }
+        // Rule 2 alternate, rule 2 root, rule 1
+        if (!active_node->has_edge(input[suffix_start_index])){
+            return {nullptr, active_node, -1, -1, phase};
+        }
+
+        int current_pos = suffix_start_index;
+        Edge* current_edge = active_node->get_edge(input[current_pos]);
+        Node* current_node = active_node;
+
+        // Full stop, rule 3
+        if (remainder_length == 0) {
+            return {current_edge, current_edge->child.get(), current_edge->suffix_start, current_edge->get_end(), phase};
+        }
+        int edge_length = (current_edge->get_end() - current_edge->suffix_start + 1);
+        int new_remainder = remainder_length - edge_length;
+        // Mid edge stop, rule 2 regular
+        if (new_remainder < 0) {
+            return {current_edge, current_node, current_edge->suffix_start, current_edge->suffix_start + remainder_length - 1, target - remainder_length + 1 };
+        }
+
+
+    }
+
+    Traversal_Result traverse_suffix_tree(std::string& input, int phase, Node* active_node, int suffix_start_index, int j) {
+
+        int target = phase - 1;
+        int remainder_length = target - suffix_start_index + 1;
+        // j == phase
+        if (j == phase) {
+            return {nullptr, active_node, -1, -1, -1};
+        }
+        int current_pos = suffix_start_index;
+        if (!active_node->has_edge(input[current_pos])) {
+            std::cout << "Edge not found: '" << input[current_pos]
+                      << "' at pos=" << current_pos
+                      << " phase=" << phase
+                      << " j=" << j
+                      << " remainder=" << suffix_start_index
+                      << " active_is_root=" << (active_node == &root)
+                      << " active children: ";
+            for (auto& [c, e] : active_node->children) {
+                std::cout << c << " ";
+            }
+            std::cout << '\n';
+            throw std::runtime_error("Edge not found");
+        }
+        Edge* current_edge = active_node->get_edge(input[current_pos]);
+        Node* current_node = active_node;
+
+         while (remainder_length > 0){
+             int edge_length = (current_edge->get_end() - current_edge->suffix_start + 1);
+             int new_remainder = remainder_length - edge_length;
+             if (new_remainder < 0) {
+                 // Mid edge stop
+                 return {current_edge, current_node, current_edge->suffix_start, current_edge->suffix_start + remainder_length - 1, target - remainder_length + 1 };
+             }
+             if (new_remainder == 0){
+                 return {current_edge, current_node, current_edge->suffix_start, current_edge->get_end() , -1 };
+
+             } else {
+                 current_node = current_edge->child.get();
+                 current_pos += edge_length;
+                 current_edge = current_node->get_edge(input[current_pos]);
+                 remainder_length = new_remainder;
+             }
+         }
+        return {nullptr, active_node, -1, -1, -1};
+    }
+
     template<typename F>
     void level_order_traverse(const  F&function, Node* node){
         if (node->children.empty()){
@@ -301,61 +410,6 @@ public:
         for(auto &child :node->children){
             assign_numbers(child.second->child.get(), number, depth+1);
         }
-    }
-
-
-
-    void resolve_suffix_links(Node* origin_node, Node* target_node){
-        if (origin_node != nullptr) {
-            origin_node->suffix_link = target_node;
-        }
-    }
-
-
-    Traversal_Result traverse_suffix_tree(std::string& input, int phase, Node* active_node, int suffix_start_index, int j) {
-
-        int target = phase - 1;
-        int remainder_length = target - suffix_start_index + 1;
-        // j == phase
-        if (j == phase) {
-            return {nullptr, active_node, -1, -1, -1};
-        }
-        int current_pos = suffix_start_index;
-        if (!active_node->has_edge(input[current_pos])) {
-            std::cout << "Edge not found: '" << input[current_pos]
-                      << "' at pos=" << current_pos
-                      << " phase=" << phase
-                      << " j=" << j
-                      << " remainder=" << suffix_start_index
-                      << " active_is_root=" << (active_node == &root)
-                      << " active children: ";
-            for (auto& [c, e] : active_node->children) {
-                std::cout << c << " ";
-            }
-            std::cout << '\n';
-            throw std::runtime_error("Edge not found");
-        }
-        Edge* current_edge = active_node->get_edge(input[current_pos]);
-        Node* current_node = active_node;
-
-         while (remainder_length > 0){
-             int edge_length = (current_edge->get_end() - current_edge->suffix_start + 1);
-             int new_remainder = remainder_length - edge_length;
-             if (new_remainder < 0) {
-                 // Mid edge stop
-                 return {current_edge, current_node, current_edge->suffix_start, current_edge->suffix_start + remainder_length - 1, target - remainder_length + 1 };
-             }
-             if (new_remainder == 0){
-                 return {current_edge, current_node, current_edge->suffix_start, current_edge->get_end() , -1 };
-
-             } else {
-                 current_node = current_edge->child.get();
-                 current_pos += edge_length;
-                 current_edge = current_node->get_edge(input[current_pos]);
-                 remainder_length = new_remainder;
-             }
-         }
-        return {nullptr, active_node, -1, -1, -1};
     }
 
     void print_tree_bfs(std::string& input) {
