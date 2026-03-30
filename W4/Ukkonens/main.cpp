@@ -102,14 +102,19 @@ inline void run_all_tests() {
 
 int main() {
     std::string input = "aaabaa$";
-    Ukkonen_Suffix_Tree suffix_tree{input, true};
-    auto suffixes = suffix_tree.get_suffixes(input);
-    for (auto &suffix: *suffixes) {
-        std:: cout << suffix << '\n';
+    try {
+        Ukkonen_Suffix_Tree suffix_tree(input, true);
+        auto suffixes = suffix_tree.get_suffixes(input);
+        for (auto &suffix: *suffixes) {
+            std:: cout << suffix << '\n';
+        }
+
+        suffix_tree.print_suffix_tree(input);
+        std::cout << suffixes->size() << '\n';
+    } catch (std::exception& e) {
+        std::cerr << "Exception: " << e.what() << '\n';
     }
 
-    suffix_tree.print_suffix_tree(input);
-    std::cout << suffixes->size() << '\n';
 //    for (auto& [c, edge] : suffix_tree.root.children) {
 //        std::cout << "root -> '" << c << "' : "
 //                  << input.substr(edge->suffix_start, edge->get_end() - edge->suffix_start + 1)
