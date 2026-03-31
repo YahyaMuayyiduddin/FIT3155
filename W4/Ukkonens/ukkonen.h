@@ -112,15 +112,22 @@ public:
                 std::cout << "Phase :" << phase <<'\n';
             }
 
-            remainder_starting_index = last_leaf_index == -1 ? 0 : last_leaf_index + 1;
+//            remainder_starting_index = last_leaf_index == -1 ? 0 : last_leaf_index + 1;
             last_created_node = nullptr;
 //            std::cout << last_leaf_index << '\n';
             for (int j = last_leaf_index + 1; j <= phase; j++) {
                 if (print_rules) {
                     std::cout << "J :" << j << '\n';
                 }
-//
-
+                if (!active_node->children.empty() &&
+                    !active_node->has_edge(input[remainder_starting_index])) {
+//                    std::cout << "Invariant broken BEFORE traversal!\n"
+//                              << "phase=" << phase
+//                              << " j=" << j
+//                              << " remainder_start=" << remainder_starting_index
+//                              << " active_node=" << active_node->no << "\n";
+//                    throw std::logic_error("Invariant broken");
+                }
                 auto [last_traversed_edge,
                         last_traversed_node,
                         edge_start,
@@ -132,7 +139,7 @@ public:
                 // TODO: apply Ukkonen rules based on traversal result
                 // Root
                 if (traversal_end == Traversal_Endpoint::LAST_EXTENSION) {
-
+                    // Rule 1
                     if (!active_node->has_edge(input[j])){
                         active_node->add_edge(j, phase, input[j], &GLOBAL_END, true);
                         last_leaf_index = j;
@@ -140,7 +147,7 @@ public:
                         if (print_rules) {
                             std::cout << "Rule 2 root" << '\n';
                         }
-                        last_created_node = nullptr;
+                        remainder_starting_index = j + 1;
 
 
 
@@ -151,8 +158,11 @@ public:
                             std::cout << "rule 3 root" << '\n';
                         }
                         active_node = &root;
-                        remainder_starting_index = j+1;
+                        remainder_starting_index = j;
+                        resolve_suffix_links(last_created_node, &root);
                         last_created_node = nullptr;
+
+
 
 
                         break;
@@ -164,8 +174,9 @@ public:
 
                 else if (traversal_end == Traversal_Endpoint::NO_REMAINDER_RULE_3){
 
-                    active_node = active_node->suffix_link;
-                    remainder_starting_index = j+1;
+                    active_node = last_traversed_node;
+                    remainder_starting_index = phase;
+                    resolve_suffix_links(last_created_node, last_traversed_node);
                     last_created_node = nullptr;
                     break;
                 }
@@ -180,8 +191,9 @@ public:
                         last_leaf_index = j;
                         last_created_node = nullptr;
 
-                        active_node = active_node->suffix_link;
+                        active_node = last_traversed_node->suffix_link;
                         remainder_starting_index = phase;
+
 
                     } // Rule 3 end of edge
                      else if (last_traversed_node->has_edge(input[phase])){
@@ -213,11 +225,23 @@ public:
 
                              std::cout << "rule 2 alt" << '\n';
                          }
+                         if (active_node == &root) {
+                             remainder_starting_index = phase;
+                         }
 
                      }
                 }
 
                 else if (traversal_end == Traversal_Endpoint::END_EDGE){
+
+                    if (last_traversed_edge->child->children.empty()){
+                        last_leaf_index = j;
+                        last_created_node = nullptr;
+                        active_node = last_traversed_node->suffix_link;
+                        remainder_starting_index = new_remainder_index_start;
+
+
+                    }
                     // Rule 2 alternate
                     if (!last_traversed_edge->child->has_edge(input[phase])){
 
@@ -235,6 +259,7 @@ public:
                             std::cout << "rule 2 alt" << '\n';
                         }
 
+
                     }
                     else if (last_traversed_edge->child->has_edge(input[phase])){
                         if (print_rules) {
@@ -245,7 +270,7 @@ public:
                         resolve_suffix_links(last_created_node, last_traversed_edge->child.get());
                         last_created_node = nullptr;
 
-                        active_node = last_traversed_edge->child->suffix_link;
+                        active_node = last_traversed_edge->child.get();
                         remainder_starting_index = phase;
 
                         break;
@@ -285,10 +310,13 @@ public:
                         if (print_rules) {
                             std::cout << "rule 2 regular" << '\n';
                         }
+                        if (last_traversed_node == &root) {
+                            remainder_starting_index = j+1;
+                        }
 
 
                     }
-
+                    // Rule 3
                     else if (input[edge_end+1] == input[phase]){
 //
                         if (print_rules) {
@@ -298,7 +326,7 @@ public:
 
                         resolve_suffix_links(last_created_node, last_traversed_node);
                         last_created_node = nullptr;
-                        active_node = last_traversed_node->suffix_link;
+                        active_node = last_traversed_node;
                         remainder_starting_index = new_remainder_index_start;
 
                         break;
@@ -306,6 +334,7 @@ public:
 
 
                 }
+                else { throw std::logic_error("Didnt meet any condition"); }
 
 
 
@@ -320,7 +349,7 @@ public:
         if (origin_node != nullptr) {
             origin_node->suffix_link = target_node;
             return;
-        } std::cout << "Nullptr" << '\n';
+        }
     }
 
     Traversal_Result find_endpoint(std::string& input, int phase, Node* active_node, int suffix_start_index, int j){
@@ -352,12 +381,14 @@ public:
         if (new_remainder == 0 ){
             return {current_edge, current_node, current_edge->suffix_start, current_edge->get_end(), target - remainder_length + 1 , Traversal_Endpoint::END_EDGE};
         }
-
-        if (new_remainder > 0) {
-            throw std::runtime_error("Invariant violated: remainder > 0, suffix links malformed");
+        if (new_remainder < 0) {
+            return {current_edge, current_node, current_edge->suffix_start, current_edge->suffix_start + remainder_length - 1, target - remainder_length + 1 , Traversal_Endpoint::MID_EDGE};
         }
-        // Mid edge stop, rule 2 regular, or rule 3
-        return {current_edge, current_node, current_edge->suffix_start, current_edge->suffix_start + remainder_length - 1, target - remainder_length + 1 , Traversal_Endpoint::MID_EDGE};
+
+        else {
+            return traverse_suffix_tree(input, phase, active_node, suffix_start_index, j);
+        }
+
 
 
     }
@@ -368,6 +399,8 @@ public:
         int remainder_length = target - suffix_start_index + 1;
         // j == phase
         if (j == phase) {
+            // Mid edge stop
+            std:: cout << "shouldn't happen" << '\n';
             return {nullptr, active_node, -1, -1, -1};
         }
         int current_pos = suffix_start_index;
@@ -392,11 +425,11 @@ public:
              int edge_length = (current_edge->get_end() - current_edge->suffix_start + 1);
              int new_remainder = remainder_length - edge_length;
              if (new_remainder < 0) {
-                 // Mid edge stop
-                 return {current_edge, current_node, current_edge->suffix_start, current_edge->suffix_start + remainder_length - 1, target - remainder_length + 1 };
+
+                 return {current_edge, current_node, current_edge->suffix_start, current_edge->suffix_start + remainder_length - 1, target - remainder_length + 1, Traversal_Endpoint::MID_EDGE};
              }
              if (new_remainder == 0){
-                 return {current_edge, current_node, current_edge->suffix_start, current_edge->get_end() , -1 };
+                 return {current_edge, current_node, current_edge->suffix_start, current_edge->get_end() , phase , Traversal_Endpoint::END_EDGE};
 
              } else {
                  current_node = current_edge->child.get();
@@ -405,7 +438,7 @@ public:
                  remainder_length = new_remainder;
              }
          }
-        return {nullptr, active_node, -1, -1, -1};
+
     }
 
     template<typename F>

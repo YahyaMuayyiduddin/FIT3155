@@ -120,7 +120,7 @@ int main() {
 //                  << input.substr(edge->suffix_start, edge->get_end() - edge->suffix_start + 1)
 //                  << '\n';
 //    }
-//    run_all_tests();
+    run_all_tests();
 
 
 
