@@ -26,8 +26,6 @@ struct Edge {
     int* global_suffix_end;
     bool is_leaf;
 
-    Edge() = default;
-
     Edge(int start, int end, std::unique_ptr<Node> new_child, int* global_end, bool leaf)  {
         this->suffix_start = start;
         this->suffix_end = end;
@@ -53,10 +51,10 @@ struct Edge {
 };
 
 struct Node {
-    std::unordered_map<char, std::unique_ptr<Edge>> children;
+    std::unordered_map<char, std::unique_ptr<Edge>> children{};
     Node* suffix_link = nullptr;
-    int depth;
-    int no;
+    int depth = 0;
+    int no = 0;
 
 
     void add_edge(int suffix_start, int suffix_end, char first_character, int* global_end, bool is_leaf) {
@@ -105,11 +103,13 @@ public:
         Node* last_created_node = nullptr;
         Node* active_node = &root;
         int remainder_starting_index = 0;
+        int counter = 0;
         for (int phase = 0; phase < input.size(); phase++) {
             GLOBAL_END++;
 
             last_created_node = nullptr;
             for (int j = last_leaf_index + 1; j <= phase; j++) {
+                counter ++;
                 auto [last_traversed_edge,
                         last_traversed_node,
                         edge_start,
@@ -243,71 +243,7 @@ public:
         }
     }
 
-    Traversal_Result find_endpoint(std::string& input, int phase, Node* active_node, int suffix_start_index, int j){
-        int target = phase - 1;
-        int remainder_length = target - suffix_start_index + 1;
-        // j == phase
-        if (j == phase) {
-            return {nullptr, active_node, -1, -1, -1, Traversal_Endpoint::LAST_EXTENSION};
-        }
-        // No remainder
-        if (remainder_length == 0) {
-            return {nullptr, active_node, -1, -1, phase, Traversal_Endpoint::NO_REMAINDER};
-        }
 
-        int current_pos = suffix_start_index;
-        Edge* current_edge = active_node->get_edge(input[current_pos]);
-        Node* current_node = active_node;
-
-        int edge_length = (current_edge->get_end() - current_edge->suffix_start + 1);
-        int new_remainder = remainder_length - edge_length;
-
-        if (new_remainder == 0 ){
-            return {current_edge, current_node, current_edge->suffix_start, current_edge->get_end(), target - remainder_length + 1 , Traversal_Endpoint::END_EDGE};
-        }
-        if (new_remainder < 0) {
-            return {current_edge, current_node, current_edge->suffix_start, current_edge->suffix_start + remainder_length - 1, target - remainder_length + 1 , Traversal_Endpoint::MID_EDGE};
-        }
-        else {
-            return traverse_suffix_tree(input, phase, active_node, suffix_start_index, j);
-        }
-        return traverse_suffix_tree(input, phase, active_node, suffix_start_index, j);
-
-
-    }
-
-    Traversal_Result traverse_suffix_tree(std::string& input, int phase, Node* active_node, int suffix_start_index, int j) {
-        int target = phase - 1;
-        int remainder_length = target - suffix_start_index + 1;
-        // j == phase
-        if (j == phase) {
-            // Mid edge stop
-            std:: cout << "shouldn't happen" << '\n';
-            return {nullptr, active_node, -1, -1, -1};
-        }
-        int current_pos = suffix_start_index;
-        Edge* current_edge = active_node->get_edge(input[current_pos]);
-        Node* current_node = active_node;
-
-         while (remainder_length > 0){
-             int edge_length = (current_edge->get_end() - current_edge->suffix_start + 1);
-             int new_remainder = remainder_length - edge_length;
-             if (new_remainder < 0) {
-
-                 return {current_edge, current_node, current_edge->suffix_start, current_edge->suffix_start + remainder_length - 1, target - remainder_length + 1, Traversal_Endpoint::MID_EDGE};
-             }
-             if (new_remainder == 0){
-                 return {current_edge, current_node, current_edge->suffix_start, current_edge->get_end() , phase , Traversal_Endpoint::END_EDGE};
-
-             } else {
-                 current_node = current_edge->child.get();
-                 current_pos += edge_length;
-                 current_edge = current_node->get_edge(input[current_pos]);
-                 remainder_length = new_remainder;
-             }
-         }
-
-    }
 
     template<typename F>
     void level_order_traverse(const  F&function, Node* node){
@@ -381,7 +317,7 @@ public:
     }
     void print_suffixes() {
         auto suffixes = get_suffixes(string);
-        const auto sort_func = [](std::string string1, std::string string2) {
+        const auto sort_func = [](std::string &string1, std::string &string2) {
             return string1.size() < string2.size();
         };
         std::sort(suffixes->begin(), suffixes->end(), sort_func);
@@ -390,7 +326,69 @@ public:
         }
 
     }
+private:
+    Traversal_Result find_endpoint(std::string& input, int phase, Node* active_node, int suffix_start_index, int j){
+        int target = phase - 1;
+        int remainder_length = target - suffix_start_index + 1;
+        // j == phase
+        if (j == phase) {
+            return {nullptr, active_node, -1, -1, -1, Traversal_Endpoint::LAST_EXTENSION};
+        }
+        // No remainder
+        if (remainder_length == 0) {
+            return {nullptr, active_node, -1, -1, phase, Traversal_Endpoint::NO_REMAINDER};
+        }
+
+        int current_pos = suffix_start_index;
+        Edge* current_edge = active_node->get_edge(input[current_pos]);
+        Node* current_node = active_node;
+
+        int edge_length = (current_edge->get_end() - current_edge->suffix_start + 1);
+        int new_remainder = remainder_length - edge_length;
+
+        if (new_remainder == 0 ){
+            return {current_edge, current_node, current_edge->suffix_start, current_edge->get_end(), target - remainder_length + 1 , Traversal_Endpoint::END_EDGE};
+        }
+        if (new_remainder < 0) {
+            return {current_edge, current_node, current_edge->suffix_start, current_edge->suffix_start + remainder_length - 1, target - remainder_length + 1 , Traversal_Endpoint::MID_EDGE};
+        }
+        else {
+            return traverse_suffix_tree(input, phase, active_node, suffix_start_index, j);
+        }
+
+
+
+    }
+
+    Traversal_Result traverse_suffix_tree(std::string& input, int phase, Node* active_node, int suffix_start_index, int j) {
+        int target = phase - 1;
+        int remainder_length = target - suffix_start_index + 1;
+        int current_pos = suffix_start_index;
+        Edge* current_edge = active_node->get_edge(input[current_pos]);
+        Node* current_node = active_node;
+
+        while (remainder_length > 0){
+            int edge_length = (current_edge->get_end() - current_edge->suffix_start + 1);
+            int new_remainder = remainder_length - edge_length;
+            if (new_remainder < 0) {
+
+                return {current_edge, current_node, current_edge->suffix_start, current_edge->suffix_start + remainder_length - 1, target - remainder_length + 1, Traversal_Endpoint::MID_EDGE};
+            }
+            if (new_remainder == 0){
+                return {current_edge, current_node, current_edge->suffix_start, current_edge->get_end() , phase , Traversal_Endpoint::END_EDGE};
+
+            } else {
+                current_node = current_edge->child.get();
+                current_pos += edge_length;
+                current_edge = current_node->get_edge(input[current_pos]);
+                remainder_length = new_remainder;
+            }
+        }
+
+    }
 };
+
+
 
 #endif //UKKONENS_UKKONEN_H
 

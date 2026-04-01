@@ -1,6 +1,6 @@
 #include <iostream>
 #include "ukkonen.h"// TIP To <b>Run</b> code, press <shortcut actionId="Run"/> or click the <icon src="AllIcons.Actions.Execute"/> icon in the gutter.
-
+#include <random>
 void test(std::string input) {
     Ukkonen_Suffix_Tree suffix_tree{input, false};
     auto suffixes = suffix_tree.get_suffixes(input);
@@ -102,12 +102,40 @@ inline void run_all_tests() {
 
 int main() {
     std::string input = "aaabaa$";
-    Ukkonen_Suffix_Tree suffix_tree(input, true);
-    auto suffixes = suffix_tree.get_suffixes(input);
+    std::string input2 = "thequickbrownfoxjumpsoverthelazydog$";
+    Ukkonen_Suffix_Tree suffix_tree(input2, true);
+
+//    run_all_tests();
+
+    int N = 100000;
+    std::string massive_input = "";
+    std::string alphabet = "abcdefghijklmnopqrstuvwxyz";
+    std::mt19937 engine(42); // Fixed seed for reproducibility
+    std::uniform_int_distribution<int> dist(0, 25);
+
+    for(int i = 0; i < N; i++) {
+        massive_input += alphabet[dist(engine)];
+    }
+
+    auto start = std::chrono::high_resolution_clock::now();
+
+    Ukkonen_Suffix_Tree tree(massive_input, false);
+
+    auto end = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double> diff = end - start;
+
+    std::cout << "DONE!" << std::endl;
+    std::cout << "Construction time: " << diff.count() << " seconds" << std::endl;
 
 
-    run_all_tests();
-    suffix_tree.print_suffixes();
+    start = std::chrono::high_resolution_clock::now();
+
+
+    end = std::chrono::high_resolution_clock::now();
+    diff = end - start;
+
+    std::cout << "DONE!" << std::endl;
+    std::cout << "Construction time: " << diff.count() << " seconds" << std::endl;
 
 
 
